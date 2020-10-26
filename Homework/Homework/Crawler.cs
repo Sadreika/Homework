@@ -4,6 +4,7 @@ using RestSharp;
 using HtmlAgilityPack;
 using System.Text.RegularExpressions;
 using System.Globalization;
+using System.Data;
 
 namespace Homework
 {
@@ -17,13 +18,18 @@ namespace Homework
         public string tableId = "";
         public void crawling()
         {
-            //IList<RestResponseCookie> cookieJar = gettingCookies();
-            //string content = loadingDataCollectionPage(cookieJar);
-            //List<Crawler> collectedData = extractData(content);
-            //gettingTaxes(cookieJar, collectedData);
-            changingTime("133.00|L|3116|2020-11-14 11:00:00|2020-11-14 13:50:00|NO");
+            IList<RestResponseCookie> cookieJar = gettingCookies();
+            string content = loadingDataCollectionPage(cookieJar);
+            List<Crawler> collectedData = extractData(content);
+            gettingTaxes(cookieJar, collectedData);
+           
         }
         public Crawler() { }
+
+        private void showData (string airports, string times, string cheapestPrice, string airportsSecond, string timesSecond, string cheapestPriceSecond, string price, string taxes, string priceWithTaxes)
+        {
+            Console.WriteLine(airports + " " + times + " " + cheapestPrice + "\n" + airportsSecond + " " + timesSecond + " " + cheapestPriceSecond + "\nPrice: " + price + "\nTaxes: " + taxes + "\nPrice with taxes: " + priceWithTaxes + "\n");
+        }
         private IList<RestResponseCookie> gettingCookies()
         {
             RestClient client = new RestClient("https://www.starperu.com/");
@@ -160,7 +166,7 @@ namespace Homework
         private void gettingTaxes(IList<RestResponseCookie> cookieJar, List<Crawler> collectedData)
         {
             RestClient client = new RestClient("https://www.starperu.com/");
-           
+            List<Crawler> combinationList = new List<Crawler>();
             client.AddDefaultHeader("Host", "www.starperu.com");
             client.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:82.0) Gecko/20100101 Firefox/82.0";
             client.AddDefaultHeader("Accept", "*/*");
@@ -171,7 +177,6 @@ namespace Homework
             client.AddDefaultHeader("DNT", "1");
             client.AddDefaultHeader("Connection", "keep-alive");
             client.AddDefaultHeader("Referer", "https://www.starperu.com/Booking1");
-           // client.AddDefaultHeader("Upgrade-Insecure-Requests", "1");
             
             string query = "\"[0-9.|A-Z- :]+\"";
             Regex regex = new Regex(query);
@@ -179,9 +184,10 @@ namespace Homework
 
             for (int i = 0; i < collectedData.Count; i++)
             {
-                for(int j = i + 1; j < collectedData.Count - 1; j++)
+                for(int j = i + 1; j <= collectedData.Count - 1; j++)
                 {
-                    if(collectedData[i].tableId.Equals("id=\"exampleRadios2\" value") && collectedData[j].tableId.Contains("id=\"Radios2\" value"))
+                    Console.WriteLine("\n");
+                    if(collectedData[i].tableId.Equals("id=\"exampleRadios2\" value") && collectedData[j].tableId.Equals("id=\"Radios2\" value"))
                     {
                         RestRequest request = new RestRequest("Booking1/ObtenerTarifas", Method.POST);
                         foreach (RestResponseCookie cookie in cookieJar)
@@ -197,9 +203,15 @@ namespace Homework
                         firstTableString = changingTime(firstTableString);
                         secondTableString = changingTime(secondTableString);
 
-                        postBody = "cod_origen=LIM&cod_destino=IQT&cant_adl=1&cant_chd=0&cant_inf=0&codigo_desc=&fecha_ida=2020-11-07&fecha_retorno=2020-11-14&tipo_viaje=R&grupo_retorno=" + firstTableString + "&grupo_ida=" + secondTableString;
+                        postBody = "cod_origen=LIM&cod_destino=IQT&cant_adl=1&cant_chd=0&cant_inf=0&codigo_desc=&fecha_ida=2020-11-07&fecha_retorno=2020-11-14&tipo_viaje=R&grupo_retorno=" + secondTableString + "&grupo_ida=" + firstTableString;
                         request.AddParameter("text/xml", postBody, ParameterType.RequestBody);
-                        IRestResponse response = client.Execute(request);                    
+                        IRestResponse response = client.Execute(request);
+
+                        string queryForTaxes = "[0-9.]+<";
+                        Regex regexForTaxes = new Regex(queryForTaxes);
+                        MatchCollection matchTaxes = regexForTaxes.Matches(response.Content);
+
+                        showData(collectedData[i].airports, collectedData[i].times, collectedData[i].cheapestPrice, collectedData[j].airports, collectedData[j].times, collectedData[j].cheapestPrice, matchTaxes[0].Value, matchTaxes[1].Value, matchTaxes[2].Value);
                     }
                 }
             }
@@ -209,38 +221,16 @@ namespace Homework
         {
             string[] splitPostBodyString = postBodyString.Split('|');
             DateTime firstDateTime = DateTime.ParseExact(splitPostBodyString[3], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+            DateTime updatedFirstDateTime = firstDateTime.Add(new TimeSpan(3, 30, 0));
             DateTime secondDateTime = DateTime.ParseExact(splitPostBodyString[4], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+            DateTime updatedSecondDateTime = secondDateTime.Add(new TimeSpan(3, 30, 0));
 
-            if(firstDateTime.Minute + 30 >= 60)
-            {
-                firstDateTime.AddHours(1);
-                firstDateTime.AddMinutes(-60);
-            }
-
-            if(firstDateTime.Hour + 3 >= 24)
-            {
-                firstDateTime.AddDays(1);
-                firstDateTime.AddHours(-24);
-            }
-
-            if (secondDateTime.Minute + 30 >= 60)
-            {
-                secondDateTime.Add(new TimeSpan(1, -60, 0));
-                //secondDateTime.AddHours(1);
-                //secondDateTime.AddMinutes(-60);
-            }
-
-            if (secondDateTime.Hour + 3 >= 24)
-            {
-                secondDateTime.AddDays(1);
-                secondDateTime.AddHours(-24);
-            }
 
             string fixedPostBodyString = splitPostBodyString[0] + "|" +
                 splitPostBodyString[1] + "|" +
                 splitPostBodyString[2] + "|" +
-                firstDateTime.Year + "-" + firstDateTime.Month + "-" + firstDateTime.Day + " " + (firstDateTime.Hour + 3) + ":" + (firstDateTime.Minute + 30) + ":00|" +
-                secondDateTime.Year + "-" + secondDateTime.Month + "-" + secondDateTime.Day + " " + (secondDateTime.Hour + 3) + ":" + (secondDateTime.Minute + 30) + ":00|" +
+                updatedFirstDateTime.Year + "-" + updatedFirstDateTime.Month + "-" + updatedFirstDateTime.Day + " " + updatedFirstDateTime.Hour + ":" + updatedFirstDateTime.Minute + ":00|" +
+                updatedSecondDateTime.Year + "-" + updatedSecondDateTime.Month + "-" + updatedSecondDateTime.Day + " " + updatedSecondDateTime.Hour + ":" + updatedSecondDateTime.Minute + ":00|" +
                 splitPostBodyString[5];
          
             return fixedPostBodyString;
