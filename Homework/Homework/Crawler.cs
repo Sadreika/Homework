@@ -9,9 +9,7 @@ namespace Homework
     public class Crawler
     {
         public string airports = "";
-        public string connectionAirport = "";
-        public string departureTime = "";
-        public string arrivalTime = "";
+        public string times = "";
         public string cheapestPrice = "";
         public string taxes = "";
         public void crawling()
@@ -20,7 +18,7 @@ namespace Homework
             extractData(content);
         }
         public Crawler() { }
-        private IList<RestResponseCookie> gettingCookies ()
+        private IList<RestResponseCookie> gettingCookies()
         {
             RestClient client = new RestClient("https://www.starperu.com/");
 
@@ -33,10 +31,10 @@ namespace Homework
             client.AddDefaultHeader("Connection", "keep-alive");
             client.AddDefaultHeader("Upgrade-Insecure-Requests", "1");
             client.FollowRedirects = true; // Jeigu false, nedarys redirekto ir vis tiek cookius surinks, bet nesu tikras ar nepaveiks sekanciu requestu
-   
+
             RestRequest request = new RestRequest("", Method.GET);
             IRestResponse response = client.Execute(request);
-    
+
             return response.Cookies;
         }
         private string loadingDataCollectionPage(IList<RestResponseCookie> cookieJar)
@@ -64,7 +62,7 @@ namespace Homework
             IRestResponse response = client.Execute(request);
             return response.Content;
         }
-        private void extractData (string content)
+        private void extractData(string content)
         {
             HtmlDocument htmlDocument = new HtmlDocument();
             htmlDocument.LoadHtml(content);
@@ -73,32 +71,64 @@ namespace Homework
 
             foreach (HtmlNode data in htmlDocument.DocumentNode.SelectNodes("//tr")) //Dar netestavau
             {
-                if(!data.InnerHtml.Equals("\n")) htmlDataBlocks.Add(data.InnerHtml);
+                if (!data.InnerHtml.Equals("\n")) htmlDataBlocks.Add(data.InnerHtml);
             }
-            foreach(string htmlDataBlock in htmlDataBlocks)
+            foreach (string htmlDataBlock in htmlDataBlocks)
             {
                 Crawler flight = new Crawler();
+
                 List<string> departureAndArrivalAirports = new List<string>();
+                htmlDocument.LoadHtml(htmlDataBlock);
+                string query = "";
                 try
                 {
-                    htmlDocument.LoadHtml(htmlDataBlock);
                     foreach (HtmlNode data in htmlDocument.DocumentNode.SelectNodes("//small"))
                     {
-                        if(!data.InnerText.Contains(":") && !data.InnerText.Contains(";")) departureAndArrivalAirports.Add(data.InnerText);
+                        if (!data.InnerText.Contains(":") && !data.InnerText.Contains(";")) departureAndArrivalAirports.Add(data.InnerText);
                     }
                     foreach (string airport in departureAndArrivalAirports)
                     {
-                        flight.airports = flight.airports + "\t" + airport;
+                        flight.airports = flight.airports + "|" + airport;
                     }
                 }
-                catch(Exception ex){}
+                catch (Exception ex) { }
+
+                List<string> priceAndDepartureArrivalTimes = new List<string>();
+                try
+                {
+                    foreach (HtmlNode data in htmlDocument.DocumentNode.SelectNodes("//input"))
+                    {
+                        priceAndDepartureArrivalTimes.Add(data.OuterHtml);
+                    }
+                    foreach (string departureAndArrivalTimes in priceAndDepartureArrivalTimes)
+                    {
+                        query = "[0-9]+-[0-9]+-[0-9]+ [0-9:]+";
+                        Regex regex = new Regex(query);
+                        MatchCollection match = regex.Matches(departureAndArrivalTimes);
+                        foreach (Match time in match)
+                        {
+                            if (!flight.times.Contains(time.Value)) flight.times = flight.times + "|" + time.Value;
+                        }
+                    }
+                }
+                catch (Exception ex) { }
 
                 try
                 {
-
+                    foreach (string departureAndArrivalTimes in priceAndDepartureArrivalTimes)
+                    {
+                        query = "[0-9]+\\.[0-9]+";
+                        Regex regex = new Regex(query);
+                        MatchCollection match = regex.Matches(departureAndArrivalTimes);
+                        if (flight.cheapestPrice.Equals("")) flight.cheapestPrice = match[0].Value;
+                        try
+                        {
+                            if (Convert.ToDouble(flight.cheapestPrice) > Convert.ToDouble(match[0].Value)) flight.cheapestPrice = match[0].Value;
+                        }
+                        catch (Exception ex){ }
+                    }
                 }
-                catch (Exception ex){}
-
+                catch (Exception ex) { }
                 Console.WriteLine();
             }
         }
