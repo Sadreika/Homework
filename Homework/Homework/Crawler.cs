@@ -10,6 +10,7 @@ namespace Homework
         public void crawling()
         {
             string content = loadingDataCollectionPage(gettingCookies());
+            extractData(content);
         }
 
         private IList<RestResponseCookie> gettingCookies ()
@@ -56,9 +57,29 @@ namespace Homework
             IRestResponse response = client.Execute(request);
             return response.Content;
         }
-        private void extractData ()
+        private void extractData (string content)
         {
+            HtmlDocument htmlDocument = new HtmlDocument();
+            htmlDocument.LoadHtml(content);
 
+            List<string> htmlDataBlocks = new List<string>();
+
+            foreach (HtmlNode data in htmlDocument.DocumentNode.SelectNodes("//tr")) //Dar netestavau
+            {
+                htmlDataBlocks.Add(data.InnerHtml); 
+            }
+
+            foreach(string htmlDataBlock in htmlDataBlocks)
+            {
+                try
+                {
+
+                }
+                catch(Exception ex)
+                {
+
+                }
+            }
         }
     }
 }
