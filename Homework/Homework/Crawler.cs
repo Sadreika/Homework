@@ -2,17 +2,24 @@
 using System.Collections.Generic;
 using RestSharp;
 using HtmlAgilityPack;
+using System.Text.RegularExpressions;
 
 namespace Homework
 {
     public class Crawler
     {
+        public string airports = "";
+        public string connectionAirport = "";
+        public string departureTime = "";
+        public string arrivalTime = "";
+        public string cheapestPrice = "";
+        public string taxes = "";
         public void crawling()
         {
             string content = loadingDataCollectionPage(gettingCookies());
             extractData(content);
         }
-
+        public Crawler() { }
         private IList<RestResponseCookie> gettingCookies ()
         {
             RestClient client = new RestClient("https://www.starperu.com/");
@@ -66,19 +73,33 @@ namespace Homework
 
             foreach (HtmlNode data in htmlDocument.DocumentNode.SelectNodes("//tr")) //Dar netestavau
             {
-                htmlDataBlocks.Add(data.InnerHtml); 
+                if(!data.InnerHtml.Equals("\n")) htmlDataBlocks.Add(data.InnerHtml);
             }
-
             foreach(string htmlDataBlock in htmlDataBlocks)
             {
+                Crawler flight = new Crawler();
+                List<string> departureAndArrivalAirports = new List<string>();
+                try
+                {
+                    htmlDocument.LoadHtml(htmlDataBlock);
+                    foreach (HtmlNode data in htmlDocument.DocumentNode.SelectNodes("//small"))
+                    {
+                        if(!data.InnerText.Contains(":") && !data.InnerText.Contains(";")) departureAndArrivalAirports.Add(data.InnerText);
+                    }
+                    foreach (string airport in departureAndArrivalAirports)
+                    {
+                        flight.airports = flight.airports + "\t" + airport;
+                    }
+                }
+                catch(Exception ex){}
+
                 try
                 {
 
                 }
-                catch(Exception ex)
-                {
+                catch (Exception ex){}
 
-                }
+                Console.WriteLine();
             }
         }
     }
